@@ -4,13 +4,25 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    [SerializeField] Animator animator;
     [SerializeField] Rigidbody2D rigid;
     [SerializeField] SpriteRenderer render;
     // 이동에 가해주는 힘과, 해당 힘이 가해졌을 때 최대로 가질 수 있는 가속도를 설정
     [SerializeField] float movePower; [SerializeField] float maxMoveSpeed;
     // 점프 시 가해주는 힘과, 해당 힘이 가해졌을 때 최대로 가해질 수 있는 가속력을 설정
     [SerializeField] float jumpPower; [SerializeField] float maxFallSpeed;
+
+    [SerializeField] bool isGrounded;
     private float x;
+
+    // 해시값을 설정하여 애니메이션을 출력해줄 수 있다.
+    private static int idleHash = Animator.StringToHash("Idle");
+    private static int runHash = Animator.StringToHash("Run");
+    private static int jumpHash = Animator.StringToHash("Jump");
+    private static int fallHash = Animator.StringToHash("Fall");
+
+    private int curAniHash;
+
 
     private void Update()
     {
@@ -18,6 +30,8 @@ public class PlayerController : MonoBehaviour
         x = Input.GetAxisRaw("Horizontal");
         // 점프 기능 사용은 스페이스로
         if (Input.GetKeyDown(KeyCode.Space)) { Jump(); }
+        GroundCheck();
+        AnimatorPlay();
     }
 
     private void FixedUpdate()
@@ -56,6 +70,41 @@ public class PlayerController : MonoBehaviour
     // 점프를 구현하는 함수
     void Jump()
     {
+        if (isGrounded == false) return;
         rigid.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse);
+    }
+
+    // 점프수를 제한하는 함수
+    void GroundCheck()
+    {
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, 0.2f);
+        if (hit.collider != null) { isGrounded = true; }
+        else { isGrounded = false; }
+    }
+
+    void AnimatorPlay()
+    {
+        int checkAniHash;
+
+        // 애니메이션 플레이 if문
+
+        // 플레이어가 y축으로 이동하는 속도값이 있었을 경우, 점프 애니메이션 출력
+        if (rigid.velocity.y > 1f) { checkAniHash = jumpHash; }
+        // 플레이어가 y축에서 아래로 이동하는 속도값이 있었을 경우, 떨어지는 애니메이션 출력
+        else if (rigid.velocity.y < -1f) { checkAniHash = fallHash; }
+
+        // 플레이어의 속도가 0.01f보다 작았을 때, 가만히 서 있는 애니메이션 출력
+        else if (rigid.velocity.sqrMagnitude < 0.01f) { checkAniHash = idleHash; }
+        // 그 외의 경우, 달리는 애니메이션 출력
+        else { checkAniHash = runHash; }
+
+        // 각 해쉬값이 다르단 점을 이용하여, 애니메이션 출력의 조건을 만족하였을 때,
+        // 해당하는 애니메이션의 해시값을 현재 해시값을 동일하게 만들어 해당하는 애니메이션을 출력할 수 있게 해주었다.
+        // 이를 통해 한 프레임마다 애니메이션을 재생하지 않고, 필요할 때만 해당 애니메이션을 출력할 수 있게 되었다.
+        if (curAniHash != checkAniHash)
+        {
+            curAniHash = checkAniHash;
+            animator.Play(curAniHash);
+        }
     }
 }
